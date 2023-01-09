@@ -1,0 +1,103 @@
+---
+title: "Project 1"
+author: "Richard Wyllia"
+date: "1/3/2023"
+output: html_document
+---
+ 
+```{r setup, include=FALSE}
+knitr:: opts_chunk$set(echo = TRUE, warning = FALSE, fig.width = 10, fig.height = 5, fig.keep = "all")
+path = getwd()
+library(ggplot2)
+```
+
+##### Gathering Data on Steps
+```{r Processing data}
+activity<- read.csv("activity.csv")  
+  activity$date<- as.POSIXct(activity$date, "%Y%m%d")
+  day<- weekdays(activity$date)
+
+activity<- cbind(activity, day)
+
+summary(activity)
+```
+
+```{r Chart}
+activityTotalSteps<- with(activity, aggregate(steps, by = list(date), sum, na.rm = TRUE))
+
+names(activityTotalSteps)<- c("Date","Steps")
+
+totalStepsdf<- data.frame(activityTotalSteps)
+g<- ggplot(totalStepsdf, aes(x = Steps)) + geom_histogram(breaks = seq(0, 25000, by = 2500), fill = "green", col = "black") + ylim(0, 30) + xlab("Total Steps Taken Per Day") + ylab("FREQUENCY") + ggtitle("Total Number of Steps Taken on a Day") + theme_classic(base_family = "serif")
+print(g)
+```
+
+```{r Mean and Median}
+mean(activityTotalSteps$Steps)
+median(activityTotalSteps$Steps)
+```
+### Q1.) The Mean of the total number of steps taken per day is 9354.23 and the median is 10,395 per day.
+
+```{r Daily Average}
+averageDailyActivity<- aggregate(activity$steps, by = list(activity$interval), FUN = mean, na.rm = TRUE)
+
+names(averageDailyActivity)<- c("Interval", "Mean")
+averageActivitydf<- data.frame(averageDailyActivity)
+j<- ggplot(averageActivitydf, mapping = aes(Interval, Mean)) + geom_line(col = "green") + xlab("Interval") + ylab("Average Number of Steps") + ggtitle("Average Steps per Interval") + theme_classic(base_family = "serif")
+averageDailyActivity[which.max(averageDailyActivity$Mean), ]$Interval 
+print(j)
+```
+### Q2.) The 835 mark has the most steps on average out of all 5 minute intervals
+```{r Missing Values}
+sum(is.na(activity$steps))
+
+imputedSteps<- averageDailyActivity$Mean[match(activity$interval, averageDailyActivity$Interval)]
+
+activityImputed<- transform(activity, steps = ifelse(is.na(activity$steps), yes = imputedSteps, no = activity$steps))
+
+totalActivityImputed<- aggregate(steps ~ date, activityImputed, sum)
+
+names(totalActivityImputed)<- c("date", "dailySteps")
+```
+
+```{r}
+totalImputedStepsdf<- data.frame(totalActivityImputed)
+
+p<- ggplot(totalImputedStepsdf, aes(x = dailySteps)) +
+  geom_histogram(breaks = seq(0, 25000, by = 2500), fill = "blue",
+  col = "black") + ylim(0, 30) +
+  xlab("Total Steps Taken Per Day") +
+  ylab("Frequency") +
+  ggtitle("Total Number of Steps Taken Daily") +
+  theme_classic(base_family = "serif")
+
+print(p)
+
+mean(totalActivityImputed$dailySteps)
+median(totalActivityImputed$dailySteps)
+```
+### Q3.)The mean and median were the same at 10,766.19 steps taken per day.
+
+```{r}
+activity$date<- as.Date(strptime(activity$date, format = "%Y-%m-%d"))
+
+activity$dayType<- sapply(activity$date,function(x)
+  {if(weekdays(x)== "Saturday"| weekdays(x)== "Sunday")
+  {y<- "Weekend"}
+  else{y<- "Weekday"}
+  y})
+
+activityByDay<- aggregate(steps ~ interval + dayType, activity, mean, na.rm = TRUE)
+```
+
+
+dayPlot<- ggplot(activityByDay, aes(x = interval, y = Steps, color = dayType)) +
+  geom_line() + ggtitle("Average Daily Steps by Day Type") +
+  xlab("Interval") +
+  ylab("Average Number of Steps") +
+  facet_wrap(~dayType, ncol = 1, nrow = 2) + 
+  scale_color_discrete(name = "Day Type") +
+  theme_classic(base_family = "serif")
+print(dayPlot)
+
+
